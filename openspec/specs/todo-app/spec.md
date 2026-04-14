@@ -148,9 +148,44 @@ THEN 覆盖率报告中语句覆盖率应 >= 80%，且无测试失败
 - E2E 测试自动化
 - PWA、SSR、国际化
 - 复杂动画或第三方 UI 组件库
-- 任务过滤、排序、搜索
+- 任务排序、搜索
 
 ## ADDED Requirements
+
+### + Requirement: Task status filtering
+
++ The `useTodos` composable SHALL expose a `filter` reactive state of type `'all' | 'active' | 'completed'`, a `setFilter` function to update the filter, and a `filteredTodos` computed property that returns the subset of tasks matching the current filter. The default filter value SHALL be `'all'`.
+
++ #### Scenario: Filter active tasks
+```
+GIVEN the task list contains both completed and incomplete tasks
+WHEN the user sets the filter to 'active'
+THEN only incomplete tasks SHALL be displayed
+```
+
++ #### Scenario: Filter completed tasks
+```
+GIVEN the task list contains both completed and incomplete tasks
+WHEN the user sets the filter to 'completed'
+THEN only completed tasks SHALL be displayed
+```
+
++ #### Scenario: Filter reactivity
+```
+GIVEN the filter is set to 'active'
+WHEN a currently visible task is marked as completed
+THEN the task SHALL immediately disappear from the filtered list
+```
+
++ `TodoApp.vue` SHALL render a filter button group with three options: 全部 (all), 进行中 (active), 已完成 (completed). The currently active filter SHALL have a distinct visual state (e.g., inverted colors, shadow offset) to provide clear feedback.
+
++ #### Scenario: Filter button interaction
+```
+GIVEN the user is viewing the task list
+WHEN the user clicks the "进行中" filter button
+THEN the task list SHALL update to show only active tasks
+AND the "进行中" button SHALL display the active visual state
+```
 
 ### + Requirement: Theme state management
 + The application SHALL provide a `useTheme` composable in `src/composables/useTheme.ts` that manages theme state (`'light'` | `'dark'`), persists the selected theme to `localStorage` under the key `theme`, detects the system's `prefers-color-scheme` preference on first visit, and applies the theme to the DOM via `data-theme` attribute on the `<html>` element.

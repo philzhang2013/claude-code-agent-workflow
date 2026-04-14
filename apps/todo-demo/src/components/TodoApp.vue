@@ -6,7 +6,7 @@ import { loadTodos, saveTodos } from '../lib/storage'
 import TodoInput from './TodoInput.vue'
 import TodoList from './TodoList.vue'
 
-const { todos, addTodo, toggleTodo, updateTodo, removeTodo } = useTodos()
+const { todos, addTodo, toggleTodo, updateTodo, removeTodo, filter, setFilter, filteredTodos } = useTodos()
 const { theme, toggleTheme } = useTheme()
 const isLoaded = ref(false)
 
@@ -24,6 +24,12 @@ watch(
   },
   { deep: true }
 )
+
+const filters = [
+  { key: 'all', label: '全部' },
+  { key: 'active', label: '进行中' },
+  { key: 'completed', label: '已完成' },
+] as const
 </script>
 
 <template>
@@ -63,8 +69,21 @@ watch(
       </button>
     </div>
     <TodoInput @add="addTodo" />
+    <div class="filter-bar" role="group" aria-label="任务筛选">
+      <button
+        v-for="f in filters"
+        :key="f.key"
+        type="button"
+        class="filter-btn"
+        :class="{ 'is-active': filter === f.key }"
+        data-testid="filter-btn"
+        @click="setFilter(f.key)"
+      >
+        {{ f.label }}
+      </button>
+    </div>
     <TodoList
-      :todos="todos"
+      :todos="filteredTodos"
       @toggle="toggleTodo"
       @update="updateTodo"
       @remove="removeTodo"
@@ -133,5 +152,44 @@ watch(
 .theme-icon {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+.filter-bar {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.filter-btn {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  border: var(--border-width) solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.filter-btn:hover {
+  background-color: var(--color-accent);
+  color: var(--color-surface);
+}
+
+.filter-btn:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.filter-btn.is-active {
+  background-color: var(--color-text);
+  color: var(--color-surface);
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 var(--color-border);
 }
 </style>

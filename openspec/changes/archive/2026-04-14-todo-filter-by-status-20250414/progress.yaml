@@ -1,0 +1,105 @@
+changeId: todo-filter-by-status-20250414
+schema: openspec-tdd-v1
+lastUpdated: "2026-04-14T12:15:00Z"
+currentStep: "6"
+testRunner:
+  command: "npm run test"
+  workingDir: "apps/todo-demo"
+  redSuccessExitCode: 1
+  greenSuccessExitCode: 0
+taskStates:
+  - taskId: "useTodos-red"
+    status: done
+    timestamp: "2026-04-14T12:05:00Z"
+  - taskId: "useTodos-green"
+    status: done
+    timestamp: "2026-04-14T12:05:00Z"
+  - taskId: "TodoApp-red"
+    status: done
+    timestamp: "2026-04-14T12:10:00Z"
+  - taskId: "TodoApp-green"
+    status: done
+    timestamp: "2026-04-14T12:10:00Z"
+  - taskId: "integration-verify"
+    status: done
+    timestamp: "2026-04-14T12:15:00Z"
+capabilityCheckpoint:
+  capability: "todo-app"
+  currentTaskId: "integration-verify"
+  status: "green_done"
+history:
+  - step: "1"
+    status: done
+    artifact: "capability=todo-app, scope=filter-by-status"
+    note: "需求已澄清：在 useTodos 中添加 filter/all|active|completed 筛选逻辑，TodoApp 添加筛选按钮 UI，TDD 开发"
+    timestamp: "2026-04-14T11:45:00Z"
+  - step: "2-A"
+    status: done
+    artifact: "proposal.md"
+    note: "提案已生成，审查通过"
+    timestamp: "2026-04-14T11:50:00Z"
+  - step: "2-B"
+    status: done
+    artifact: "design.md"
+    note: "设计已生成，审查通过"
+    timestamp: "2026-04-14T11:50:00Z"
+  - step: "2-C"
+    status: done
+    artifact: "specs/todo-app/spec.md"
+    note: "Delta spec 已生成，审查通过"
+    timestamp: "2026-04-14T11:55:00Z"
+  - step: "2-D"
+    status: done
+    artifact: "tasks.md"
+    note: "任务清单已生成，审查通过"
+    timestamp: "2026-04-14T11:55:00Z"
+  - step: "3"
+    status: done
+    artifact: "tasks.md validated"
+    note: "任务拆分校验通过，每个 capability 都有 RED/GREEN"
+    timestamp: "2026-04-14T12:00:00Z"
+  - step: "4"
+    status: done
+    artifact: "src/composables/useTodos.spec.ts (6 new RED tests)"
+    note: "RED 测试已生成，6 个新测试失败，12 个原有测试通过"
+    timestamp: "2026-04-14T12:05:00Z"
+  - step: "4-V"
+    status: done
+    artifact: "RED verification report"
+    note: "编译通过，退出码 1 符合 redSuccessExitCode，RED/GREEN 隔离已确认"
+    timestamp: "2026-04-14T12:05:00Z"
+  - step: "5"
+    status: done
+    artifact: "src/composables/useTodos.ts"
+    note: "GREEN 实现完成，useTodos 18 个测试全部通过"
+    timestamp: "2026-04-14T12:05:00Z"
+  - step: "4"
+    status: done
+    artifact: "src/components/TodoApp.spec.ts (4 new RED tests)"
+    note: "RED 测试已生成，4 个新测试失败，9 个原有测试通过"
+    timestamp: "2026-04-14T12:10:00Z"
+  - step: "4-V"
+    status: done
+    artifact: "RED verification report"
+    note: "编译通过，退出码 1 符合 redSuccessExitCode，RED/GREEN 隔离已确认"
+    timestamp: "2026-04-14T12:10:00Z"
+  - step: "5"
+    status: done
+    artifact: "src/components/TodoApp.vue"
+    note: "GREEN 实现完成，TodoApp 13 个测试全部通过"
+    timestamp: "2026-04-14T12:10:00Z"
+  - step: "integration-verify"
+    status: done
+    artifact: "full test suite + coverage"
+    note: "63 个测试全部通过，语句覆盖率 92.53%"
+    timestamp: "2026-04-14T12:15:00Z"
+  - step: "5"
+    status: done
+    artifact: "quality-security-reviewer + spec-compliance-reviewer + code-reviewer"
+    note: "三审查代理全部通过，无阻断/HIGH 问题"
+    timestamp: "2026-04-14T20:05:00Z"
+  - step: "6"
+    status: done
+    artifact: "openspec/changes/archive/2026-04-14-todo-filter-by-status-20250414"
+    note: "归档完成"
+    timestamp: "2026-04-14T20:10:00Z"

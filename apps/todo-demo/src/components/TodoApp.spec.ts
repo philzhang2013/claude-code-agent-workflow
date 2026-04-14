@@ -124,4 +124,63 @@ describe('TodoApp', () => {
     // verify the element receives the theme-aware background-color declaration
     expect(app.element.style.backgroundColor || getComputedStyle(app.element).backgroundColor).toBeTruthy()
   })
+
+  it('should render filter buttons', () => {
+    const wrapper = mount(TodoApp)
+    const buttons = wrapper.findAll('[data-testid="filter-btn"]')
+
+    expect(buttons).toHaveLength(3)
+    expect(buttons[0].text()).toBe('全部')
+    expect(buttons[1].text()).toBe('进行中')
+    expect(buttons[2].text()).toBe('已完成')
+  })
+
+  it('should mark "all" filter button as active by default', () => {
+    const wrapper = mount(TodoApp)
+    const activeButton = wrapper.find('[data-testid="filter-btn"].is-active')
+
+    expect(activeButton.exists()).toBe(true)
+    expect(activeButton.text()).toBe('全部')
+  })
+
+  it('should switch active filter when a filter button is clicked', async () => {
+    const wrapper = mount(TodoApp)
+    const buttons = wrapper.findAll('[data-testid="filter-btn"]')
+
+    await buttons[1].trigger('click')
+
+    const activeButton = wrapper.find('[data-testid="filter-btn"].is-active')
+    expect(activeButton.exists()).toBe(true)
+    expect(activeButton.text()).toBe('进行中')
+  })
+
+  it('should filter displayed todos based on selected filter', async () => {
+    const wrapper = mount(TodoApp)
+    const input = wrapper.findComponent(TodoInput)
+    const buttons = wrapper.findAll('[data-testid="filter-btn"]')
+
+    await input.vm.$emit('add', '未完成任务')
+    await input.vm.$emit('add', '已完成任务')
+
+    const list = wrapper.findComponent(TodoList)
+    const id = list.props('todos')[1].id
+    await list.vm.$emit('toggle', id)
+
+    // active filter
+    await buttons[1].trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent(TodoList).props('todos')).toHaveLength(1)
+    expect(wrapper.findComponent(TodoList).props('todos')[0].title).toBe('未完成任务')
+
+    // completed filter
+    await buttons[2].trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent(TodoList).props('todos')).toHaveLength(1)
+    expect(wrapper.findComponent(TodoList).props('todos')[0].title).toBe('已完成任务')
+
+    // all filter
+    await buttons[0].trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findComponent(TodoList).props('todos')).toHaveLength(2)
+  })
 })
