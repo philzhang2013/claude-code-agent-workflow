@@ -13,7 +13,13 @@
       "Bash(openspec new:*)",
       "Bash(openspec instructions:*)",
       "Bash(npx vitest:*)",
-      "Bash(echo \"EXIT_CODE: $?\")"
+      "Bash(echo \"EXIT_CODE: $?\")",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(npx playwright:*)",
+      "Bash(kill 93299 93241 93239)",
+      "Bash(git add:*)"
     ]
   }
 }

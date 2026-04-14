@@ -1,12 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { useTodos } from './useTodos'
 
 describe('useTodos', () => {
-  beforeEach(() => {
-    // Ensure clean state for each test
-    localStorage.clear()
-  })
-
   it('should expose an empty todos list initially', () => {
     const { todos } = useTodos()
     expect(todos.value).toEqual([])
