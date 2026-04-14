@@ -38,3 +38,20 @@
   --duration-normal: 200ms;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+[data-theme="dark"] {
+  --color-bg: #0a0a0a;
+  --color-surface: #1a1a1a;
+  --color-text: #f3f3f3;
+  --color-accent: #ff6b6b;
+  --color-accent-hover: #ff5252;
+  --color-success: #51cf66;
+  --color-border: #f3f3f3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+  }
+}

@@ -33,9 +33,9 @@ THEN 开发服务器应在默认端口成功启动且无构建错误
 
 **Scenario: S2 — 创建任务**
 ```
-GIVEN 用户在输入框中输入“学习 Vue 3”
+GIVEN 用户在输入框中输入"学习 Vue 3"
 WHEN 用户按下回车或点击添加按钮
-THEN 任务列表中应出现一条标题为“学习 Vue 3”、状态为未完成的任务
+THEN 任务列表中应出现一条标题为"学习 Vue 3"、状态为未完成的任务
 ```
 
 **Scenario: S3 — 切换完成状态**
@@ -47,9 +47,9 @@ THEN 该任务应变为已完成状态，且 UI 应反映该变化
 
 **Scenario: S4 — 编辑任务**
 ```
-GIVEN 列表中存在一条标题为“旧标题”的任务
-WHEN 用户触发编辑并将标题改为“新标题”后确认
-THEN 该任务在列表中的标题应更新为“新标题”
+GIVEN 列表中存在一条标题为"旧标题"的任务
+WHEN 用户触发编辑并将标题改为"新标题"后确认
+THEN 该任务在列表中的标题应更新为"新标题"
 ```
 
 **Scenario: S5 — 删除任务**
@@ -133,7 +133,7 @@ THEN 所有元素应使用统一的边框宽度和阴影偏移，无默认浏览
 ```
 GIVEN 所有测试用例已编写完成
 WHEN 执行 npm run test -- --coverage
-THEN 覆盖率报告中语句覆盖率应 ≥ 80%，且无测试失败
+THEN 覆盖率报告中语句覆盖率应 >= 80%，且无测试失败
 ```
 
 ### NFR-2: 构建与部署
@@ -149,3 +149,86 @@ THEN 覆盖率报告中语句覆盖率应 ≥ 80%，且无测试失败
 - PWA、SSR、国际化
 - 复杂动画或第三方 UI 组件库
 - 任务过滤、排序、搜索
+
+## ADDED Requirements
+
+### + Requirement: Theme state management
++ The application SHALL provide a `useTheme` composable in `src/composables/useTheme.ts` that manages theme state (`'light'` | `'dark'`), persists the selected theme to `localStorage` under the key `theme`, detects the system's `prefers-color-scheme` preference on first visit, and applies the theme to the DOM via `data-theme` attribute on the `<html>` element.
+
++ #### Scenario: Theme persistence
+```
+GIVEN the application is running and the user has a visible theme toggle
+WHEN user toggles between light and dark themes
+THEN the `theme` key in `localStorage` SHALL be updated to `"light"` or `"dark"` within 100ms
+```
+
++ #### Scenario: System preference detection
+```
+GIVEN the user visits for the first time with no `theme` record in `localStorage`
+WHEN the application initializes
+THEN the application SHALL automatically match the system's `prefers-color-scheme` preference
+```
+
++ #### Scenario: Invalid theme fallback
+```
+GIVEN `localStorage` contains an invalid theme value
+WHEN the application reads the stored theme on initialization
+THEN the application SHALL fall back to `light` theme and overwrite the stored value with `"light"`
+```
+
++ #### Scenario: Storage unavailable graceful degradation
+```
+GIVEN `localStorage` is unavailable (e.g., private mode or disabled)
+WHEN the user toggles the theme
+THEN the theme state SHALL silently fall back to in-memory storage without crashing
+```
+
++ #### Scenario: MatchMedia unavailable fallback
+```
+GIVEN `matchMedia` is unavailable in the environment
+WHEN the application attempts to detect system color scheme preference
+THEN the application SHALL fall back to `light` theme
+```
+
+### + Requirement: Theme toggle UI
++ `TodoApp.vue` SHALL contain a visible theme toggle button that allows users to manually switch between light and dark themes instantly without page refresh.
+
++ #### Scenario: Instant theme switch
+```
+GIVEN the user is viewing the application
+WHEN user clicks the theme toggle button
+THEN the application SHALL instantly switch between light and dark themes without page refresh
+```
+
+### + Requirement: Dark theme visual consistency
++ In dark theme, all components (input, buttons, task items, container) SHALL maintain Neo-brutalism hard borders and hard shadows, with background-to-text contrast ratio >= 4.5:1.
+
++ #### Scenario: Dark mode contrast
+```
+GIVEN the application renders in dark theme
+WHEN the user views input box, task items, and buttons
+THEN all text and interactive elements SHALL remain visible with contrast ratio >= 4.5:1 against their backgrounds
+```
+
+## ~ MODIFIED Requirements
+
+### ~ Requirement: UI and visual style
++ The application SHALL use hand-written native CSS without Tailwind or third-party UI libraries. The visual style SHALL be lightweight Neo-brutalism with bold borders, high-contrast colors, and intentional non-uniform shadows, avoiding template-like layouts. Design tokens SHALL be centralized in `src/styles/tokens.css`, supporting both light and dark theme variables with dark theme tokens applied via `[data-theme="dark"]` selector. Component styles SHALL NOT hardcode colors, spacing, or shadow values. Components SHALL be organized by feature domain: `TodoApp.vue` (container), `TodoInput.vue` (input), `TodoList.vue` (list), `TodoItem.vue` (item).
+
++ #### Scenario: Visual style consistency
+```
+GIVEN the user opens the application
+WHEN the user views input box, task items, and buttons
+THEN all elements SHALL use uniform border width and shadow offset without default browser template feel
+AND the visual style SHALL remain consistent in both light and dark themes
+```
+
+### ~ Requirement: Test coverage
+~ The project SHALL use Vitest as the test runner and `@vue/test-utils` for component testing. Unit tests SHALL cover `useTodos.ts`, `storage.ts`, `useTheme.ts`, and core components (`TodoInput`, `TodoItem`, `TodoList`). Test coverage SHALL reach or exceed 80% statement coverage.
+
++ #### Scenario: Coverage meets target
+```
+GIVEN all test cases are written
+WHEN `npm run test -- --coverage` is executed
+THEN the coverage report SHALL show statement coverage >= 80% with no test failures
+```

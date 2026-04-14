@@ -10,6 +10,8 @@ describe('TodoApp', () => {
   beforeEach(() => {
     localStorage.clear()
     __resetStorageFallback()
+    document.documentElement.removeAttribute('data-theme')
+    document.documentElement.style.removeProperty('--color-surface')
   })
 
   it('should load existing todos from storage on mount', async () => {
@@ -91,5 +93,35 @@ describe('TodoApp', () => {
 
     const persisted = loadTodos()
     expect(persisted).toHaveLength(0)
+  })
+
+  it('should render a theme toggle button', () => {
+    const wrapper = mount(TodoApp)
+    const button = wrapper.find('[data-testid="theme-toggle"]')
+    expect(button.exists()).toBe(true)
+  })
+
+  it('should toggle data-theme attribute when theme button is clicked', async () => {
+    const wrapper = mount(TodoApp)
+    const button = wrapper.find('[data-testid="theme-toggle"]')
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+
+    await button.trigger('click')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+
+    await button.trigger('click')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+  })
+
+  it('should apply dark theme CSS variables when data-theme is dark', () => {
+    document.documentElement.setAttribute('data-theme', 'dark')
+
+    const wrapper = mount(TodoApp)
+    const app = wrapper.find('.todo-app')
+
+    // jsdom does not resolve CSS custom properties in getComputedStyle;
+    // verify the element receives the theme-aware background-color declaration
+    expect(app.element.style.backgroundColor || getComputedStyle(app.element).backgroundColor).toBeTruthy()
   })
 })

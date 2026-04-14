@@ -1,0 +1,87 @@
+changeId: todo-theme-toggle-20250414
+schema: spec-driven
+lastUpdated: "2026-04-14T19:25:00Z"
+currentStep: "6"
+testRunner:
+  command: "npm test"
+  workingDir: "apps/todo-demo"
+  redSuccessExitCode: 1
+  greenSuccessExitCode: 0
+techStack: "web"
+taskStates:
+  - taskId: "1.1"
+    status: done
+    timestamp: "2026-04-14T16:50:00Z"
+  - taskId: "1.2"
+    status: done
+    timestamp: "2026-04-14T17:00:00Z"
+  - taskId: "1.3"
+    status: done
+    timestamp: "2026-04-14T19:12:00Z"
+  - taskId: "2.1"
+    status: done
+    timestamp: "2026-04-14T19:15:00Z"
+  - taskId: "2.2"
+    status: done
+    timestamp: "2026-04-14T19:18:00Z"
+  - taskId: "2.3"
+    status: done
+    timestamp: "2026-04-14T19:19:00Z"
+  - taskId: "3.1"
+    status: done
+    timestamp: "2026-04-14T19:20:00Z"
+history:
+  - step: "1"
+    status: done
+    artifact: "capability=todo-app"
+    note: "需求已澄清：为 Neo-brutalism 风格 todo 应用添加亮/暗主题切换，包含 useTheme composable、CSS 变量覆盖、持久化存储"
+    timestamp: "2026-04-14T16:05:00Z"
+  - step: "2-A"
+    status: done
+    artifact: "proposal.md"
+    note: "AI review 通过（0 阻断 / 0 HIGH）"
+    timestamp: "2026-04-14T16:10:00Z"
+  - step: "2-H1"
+    status: done
+    artifact: "proposal.md"
+    note: "工程师确认范围通过"
+    timestamp: "2026-04-14T16:15:00Z"
+  - step: "2-B"
+    status: done
+    artifact: "design.md"
+    note: "AI review 通过（0 阻断 / 0 HIGH）"
+    timestamp: "2026-04-14T16:20:00Z"
+  - step: "2-C"
+    status: done
+    artifact: "spec.md"
+    note: "AI review 通过（0 阻断 / 0 HIGH）"
+    timestamp: "2026-04-14T16:30:00Z"
+  - step: "2-D"
+    status: done
+    artifact: "tasks.md"
+    note: "AI review 通过（0 阻断 / 0 HIGH）"
+    timestamp: "2026-04-14T16:35:00Z"
+  - step: "2-H2"
+    status: done
+    artifact: "design.md|spec.md|tasks.md"
+    note: "工程师一次性确认技术与任务通过"
+    timestamp: "2026-04-14T16:40:00Z"
+  - step: "3"
+    status: done
+    artifact: "tasks.md"
+    note: "task-splitter 校验通过：每个能力都有 RED/GREEN，任务粒度 0.5-2 人日"
+    timestamp: "2026-04-14T16:45:00Z"
+  - step: "4"
+    status: done
+    artifact: "src/composables/useTheme.spec.ts|src/composables/useTheme.ts|src/components/TodoApp.spec.ts|src/components/TodoApp.vue|src/styles/tokens.css|src/main.ts"
+    capabilityCheckpoint:
+      capability: "todo-app"
+      currentTaskId: "3.1"
+      status: "green_done"
+    note: "TDD 自治执行完成：useTheme RED/GREEN + todo-app 主题切换 RED/GREEN + 集成验证，全量测试 53/53 通过，覆盖率 91%"
+    timestamp: "2026-04-14T19:20:00Z"
+  - step: "5"
+    status: done
+    artifact: "security=PASS|spec-compliance=PASS|code-quality=PASS(after-fix)"
+    note: "并行审查通过：security 无问题，spec-compliance 完全符合，code-quality 的 2 个 HIGH 问题已修复（移除 setTimeout、改用 vi.restoreAllMocks）"
+    timestamp: "2026-04-14T19:25:00Z"
