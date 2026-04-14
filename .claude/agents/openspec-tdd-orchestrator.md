@@ -52,12 +52,10 @@ args:
 | 规范生成 | `spec-writer` | Step 2-C |
 | 任务生成 | `task-writer` | Step 2-D |
 | 任务拆分校验 | `task-splitter` | Step 3 |
-| RED 测试生成 | `red-test-generator` | Step 4 |
-| RED 验证 | `red-verifier` | Step 4-V |
-| GREEN 实现 | `green-implementer` | Step 5 |
-| 质量安全审查 | `quality-security-reviewer` | Step 6（并行）|
-| Spec 合规审查 | `spec-compliance-reviewer` | Step 6（并行）|
-| 代码审查 | `code-reviewer` | Step 6（并行）|
+| TDD 自治执行 | `tdd-implementer` | Step 4（按 task 循环调用）|
+| 质量安全审查 | `quality-security-reviewer` | Step 5（并行）|
+| Spec 合规审查 | `spec-compliance-reviewer` | Step 5（并行）|
+| 代码审查 | `code-reviewer` | Step 5（并行）|
 
 ## 执行流程
 
@@ -67,7 +65,7 @@ args:
 2. 若存在，读取 `currentStep`、`history`、`capabilityCheckpoint`：
    - `in_progress` / `blocked` / `rollback` → 从该 Step 继续
    - `done` → 进入下一步并更新 `currentStep`
-   - Step 4~5 特殊处理：按 `capabilityCheckpoint.currentTaskId` 粒度续执行
+   - Step 4 特殊处理：按 `capabilityCheckpoint.currentTaskId` 粒度续执行
 3. 若不存在，初始化 `progress.yaml`（含 `testRunner`、`taskStates`、`history`），从 Step 1 开始
 
 ### 阶段一：需求探索（Step 1）
@@ -75,6 +73,7 @@ args:
 - 调用 `Skill: openspec-explore`
 - 传递 `prd-text` 或需求描述
 - 输出：澄清后的范围、Change-ID、capability
+- 推断 `testRunner` 和 `techStack`，初始化 `progress.yaml`
 - 更新 `progress.yaml`，`currentStep` → `2-A`
 
 ### 阶段二：规范生成（Step 2-A ~ 2-D + 2-H1 / 2-H2）
@@ -111,7 +110,7 @@ Step 2-H2: 人工 review（一次性确认 design + spec + tasks）
 - `2-H2` 在 `2-B-R`、`2-C-R`、`2-D-R` 全部通过后统一执行
 - 不通过时退回对应 writer 阶段
 
-### 阶段三：TDD 实施（Step 3 ~ Step 7）
+### 阶段三：TDD 实施（Step 3 ~ Step 5）
 
 ```
 Step 3: 调用 task-splitter
@@ -120,21 +119,33 @@ Step 3: 调用 task-splitter
     ═══════════════════════════════════════════════════════════════
     ↓ 通过
 
-Step 4: 调用 red-test-generator
-    ↓ 输出测试代码
-
-Step 4-V: 调用 red-verifier
-    ═══════════════════════════════════════════════════════════════
-    【门禁：RED/GREEN 隔离】
-    关键动作：Step 5 调用 green-implementer 时必须使用 isolation: "worktree"
-    ═══════════════════════════════════════════════════════════════
+Step 4-Prep: 创建持久 worktree
+    1. 检查 .claude/worktrees/<change-id> 是否已存在
+    2. 若不存在：git worktree add .claude/worktrees/<change-id> -b feat/openspec-<change-id>
+    3. orchestrator 切换 working directory 到该 worktree
+    4. 在该 worktree 中运行一次 test-runner.command，预热测试环境并确认可用
     ↓ 通过
 
-Step 5: 调用 green-implementer（isolation: "worktree"）
-    ↓ 输出实现代码
-    合并 worktree 后运行 testRunner.command 验证
+Step 4: 在该 worktree 中按 task 遍历 tasks.md 中的 pending 任务
+    对每个 task:
+        调用 tdd-implementer（**不带 isolation**），传入 `test-runner` 和 `tech-stack`
+        ├─ 内部 RED：生成失败测试
+        ├─ 内部 RED Verify：编译通过且至少一个失败
+        ├─ 内部 GREEN：写最小实现
+        └─ 内部 GREEN Verify：所有测试通过
+        ↓ 成功 → 更新 progress.yaml taskStates，继续下一个 task
+        ↓ 阻断 → 立即停止，汇报原因，保留 worktree 供排查
+    ═══════════════════════════════════════════════════════════════
+    【门禁：TDD 闭环】每个 task 必须 RED 失败 + GREEN 通过
+    ═══════════════════════════════════════════════════════════════
+    全部 task 完成后 → currentStep → 5
 
-Step 6: 使用同一条 message 中的多个 Agent 工具并行调用：
+Step 4-Cleanup: 合并 worktree 回原仓库
+    1. 切换回原 working directory
+    2. git worktree remove .claude/worktrees/<change-id>
+    3. branch feat/openspec-<change-id> 保留，供后续 review / PR
+
+Step 5: 使用同一条 message 中的多个 Agent 工具并行调用：
     ├─ Agent(subagent_type="quality-security-reviewer")
     ├─ Agent(subagent_type="spec-compliance-reviewer")
     └─ Agent(subagent_type="code-reviewer")
@@ -144,7 +155,7 @@ Step 6: 使用同一条 message 中的多个 Agent 工具并行调用：
     ═══════════════════════════════════════════════════════════════
     ↓ 通过
 
-Step 7: 调用 Skill: openspec-archive-change
+Step 6: 调用 Skill: openspec-archive-change
     ↓ 归档完成
 ```
 
@@ -164,6 +175,7 @@ testRunner:
   workingDir: "apps/todo-demo"
   redSuccessExitCode: 1
   greenSuccessExitCode: 0
+techStack: "web"
 taskStates:
   - taskId: "useTodos-red"
     status: done
@@ -178,12 +190,12 @@ history:
     note: "范围已澄清"
     timestamp: "2026-04-14T10:00:00Z"
   - step: "4"
-    status: done
-    artifact: "src/composables/useTodos.spec.ts"
+    status: in_progress
+    artifact: "src/composables/useTodos.spec.ts|src/composables/useTodos.ts"
     capabilityCheckpoint:
       capability: "useTodos"
-      currentTaskId: "useTodos-red"
-      status: "red_done"
+      currentTaskId: "1.2"
+      status: "green_done"
     timestamp: "2026-04-14T11:00:00Z"
 ```
 
@@ -200,7 +212,13 @@ orchestrator 不硬编码测试命令。`testRunner` 字段：
 | `redSuccessExitCode` | RED 阶段期望退出码（通常 1，表示有失败但编译通过）|
 | `greenSuccessExitCode` | GREEN 阶段期望退出码（通常 0，表示全通过）|
 
-Step 1 结束后根据项目结构推断或确认 `testRunner` 配置并写入 `progress.yaml`。
+Step 1 结束后根据项目结构推断或确认 `testRunner` 配置并写入 `progress.yaml`。同时根据 `testRunner.command` 和项目文件（如 `pom.xml`、`package.json`）推断 `techStack` 并写入 `progress.yaml`。
+
+**techStack 推断规则**：
+| 项目特征 | `techStack` |
+|---|---|
+| 含 `mvn` / `gradle` 或存在 `pom.xml` / `build.gradle` | `springboot` |
+| 含 `vitest` / `jest` / `npm test` 或存在 `package.json`（前端框架） | `web` |
 
 ### 3. `tasks.md` 只读
 
@@ -212,7 +230,7 @@ Step 1 结束后根据项目结构推断或确认 `testRunner` 配置并写入 `
 
 | 阶段 | 调用方 | 产物 | 通过标准 | progress.yaml 更新 |
 |---|---|---|---|---|
-| Step 1 | `openspec-explore` | 需求范围、Change-ID、capability | 范围清晰 | 初始化（含 `testRunner`），`currentStep` → `2-A` |
+| Step 1 | `openspec-explore` | 需求范围、Change-ID、capability | 范围清晰 | 初始化（含 `testRunner`、`techStack`），`currentStep` → `2-A` |
 | 2-A | `proposal-writer` | `proposal.md` | 格式正确、SMART 标准、AI review 通过 | `history` 追加 2-A done，`currentStep` → `2-H1` |
 | 2-H1 | 人工 review | — | 工程师确认 proposal 范围 | `history` 追加 2-H1 done，`currentStep` → `2-B` |
 | 2-B | `design-writer` | `design.md` | 与 proposal 一致、接口约定完整 | `history` 追加 2-B done，`currentStep` → `2-C` |
@@ -220,15 +238,13 @@ Step 1 结束后根据项目结构推断或确认 `testRunner` 配置并写入 `
 | 2-D | `task-writer` | `tasks.md` | 含 RED/GREEN/IMPROVE、粒度 0.5-2 人日 | `history` 追加 2-D done，`currentStep` → `2-H2` |
 | 2-H2 | 人工 review | — | 工程师确认 design、spec、tasks | `history` 追加 2-H2 done，`currentStep` → `3` |
 | Step 3 | `task-splitter` | 校验后 `tasks.md` | 每个能力都有 RED/GREEN | `history` 追加 3 done，`currentStep` → `4` |
-| Step 4 | `red-test-generator` | 测试代码 | 语法正确、测试文件已创建 | `history` 追加 4 done，`currentStep` → `4-V`；写入 `capabilityCheckpoint` |
-| 4-V | `red-verifier` | RED 验证报告 | 编译通过、退出码等于 `redSuccessExitCode` | `history` 追加 4-V done，更新 `taskStates`，`currentStep` → `5` |
-| Step 5 | `green-implementer` | 实现代码 | 所有测试通过、未修改测试逻辑 | 合并 worktree 后运行 `testRunner.command`，通过则更新 `history` 和 `taskStates`，`currentStep` → `6` |
-| Step 6 | `quality-security-reviewer` + `spec-compliance-reviewer` + `code-reviewer`（并行） | 三审查报告 + 汇总结论 | 按优先级汇总后无阻断/HIGH 问题 | `history` 追加 6 done，更新 `taskStates`，`currentStep` → `7` |
-| Step 7 | `openspec-archive-change` | 归档目录 | 所有 artifact 完成 | `history` 追加 7 done，`currentStep` 保留为 `7 done` |
+| Step 4 | `tdd-implementer`（按 task 顺序调用，共用同一 worktree） | 测试代码 + 实现代码 | RED 编译通过且失败、GREEN 全通过 | 按 task 更新 `taskStates` 和 `capabilityCheckpoint`，全部完成后 `history` 追加 4 done，`currentStep` → `5` |
+| Step 5 | `quality-security-reviewer` + `spec-compliance-reviewer` + `code-reviewer`（并行） | 三审查报告 + 汇总结论 | 按优先级汇总后无阻断/HIGH 问题 | `history` 追加 5 done，更新 `taskStates`，`currentStep` → `6` |
+| Step 6 | `openspec-archive-change` | 归档目录 | 所有 artifact 完成 | `history` 追加 6 done，`currentStep` 保留为 `6 done` |
 
-## 并行审查优先级与汇总（Step 6）
+## 并行审查优先级与汇总（Step 5）
 
-Step 6 的三个审查代理**必须使用同一条 message 中的多个 `Agent` 工具并行调用**。
+Step 5 的三个审查代理**必须使用同一条 message 中的多个 `Agent` 工具并行调用**。
 
 收到全部报告后，按以下优先级汇总：
 
@@ -245,7 +261,7 @@ Step 6 的三个审查代理**必须使用同一条 message 中的多个 `Agent`
 
 **冲突仲裁**：高优先级审查员的结论覆盖低优先级。
 
-orchestrator 必须输出一份《Step 6 审查汇总结论》：
+orchestrator 必须输出一份《Step 5 审查汇总结论》：
 - 各代理最高级别
 - 整体结论（通过 / HIGH / 阻断）
 - 若需修复，指明退回阶段
@@ -291,7 +307,9 @@ upstream: <file-path>
 | 2-C | Subagent | 完成 | spec.md | 通过 | 2-H2 待确认 |
 | 2-D | Subagent | 完成 | tasks.md | 通过 | 2-H2 待确认 |
 | 2-H2 | Human | 待确认 | — | — | — |
-| ... | ... | ... | ... | ... | ... |
+| Step 3 | Subagent | 完成 | tasks.md | — | — |
+| Step 4 | Subagent | 进行中 | 测试+实现 | — | — |
+| Step 5 | Subagent | 待执行 | 审查报告 | — | — |
 ```
 
 ## 与工程师的交互原则
@@ -300,5 +318,5 @@ upstream: <file-path>
 - **每个阶段结束后**：简要汇报关键结论，展示向下 Handoff 的参数
 - **在 AI review 门禁处**：输出审查摘要，继续下一 artifact 或进入人工 review
 - **在人工 review 门禁处（2-H1 / 2-H2）**：汇总待确认 artifact，等待工程师一次性确认
-- **在 RED/GREEN 门禁处**：明确要求工程师确认"是否通过"，不要自动连续执行
+- **在 TDD 实施阶段（Step 4）**：`tdd-implementer` 内部自动完成 RED→GREEN 闭环，只有在异常（编译失败、测试全绿等）时才停下来汇报
 - **发现阻断时**：立即停止，给出明确修复建议，指明应退回的 writer 阶段
