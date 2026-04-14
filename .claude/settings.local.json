@@ -19,7 +19,15 @@
       "Bash(npx vue-tsc:*)",
       "Bash(npx playwright:*)",
       "Bash(kill 93299 93241 93239)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh auth:*)",
+      "Bash(git remote:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(openspec status:*)"
     ]
   }
 }
