@@ -28,6 +28,59 @@ args:
 > 每个 artifact（proposal / design / spec / tasks）都必须先经过 **AI review** 再经过 **人工 review**，全部通过后才进入下一阶段。  
 > **Step 3 ~ Step 7：TDD 纪律强化**（RED/GREEN 隔离、代码审查、归档）
 
+## 进度持久化机制
+
+为了确保会话中断后可以从最新步骤继续执行，引入两层进度记录：
+
+### 1. 工作流进度文件 `progress.md`
+
+在 `openspec/changes/<change-id>/` 目录下维护 `progress.md`，由 orchestrator 在每个 Step 边界强制更新。
+
+```markdown
+---
+change-id: <change-id>
+schema: <schema-name>
+lastUpdated: <ISO-8601>
+currentStep: <step-id>
+---
+
+| Step | 状态 | 产物 | 备注 |
+|---|---|---|---|
+| 1 | done | capability=todo-app | 范围已澄清 |
+| 2-A | done | proposal.md | AI+人工 review 通过 |
+| 2-B | done | design.md | AI+人工 review 通过 |
+| 2-C | done | specs/<capability>/spec.md | AI+人工 review 通过 |
+| 2-D | done | tasks.md | AI+人工 review 通过 |
+| 3 | done | tasks.md (validated) | 规范冻结 |
+| 4 | done | <测试文件路径> | RED 生成完成 |
+| 4-V | done | RED report | 验证通过 |
+| 5 | in_progress | <实现文件路径> | GREEN 实现中 |
+| 6 | pending | — | 等待代码审查 |
+| 7 | pending | — | 等待归档 |
+```
+
+**状态定义**：
+- `done`：该 Step 已完成并通过所有门禁
+- `in_progress`：该 Step 已开始但尚未完成（断点位置）
+- `pending`：该 Step 尚未开始
+- `blocked`：该 Step 因前置条件未满足被阻断
+- `rollback`：该 Step 因审查/实现问题回退，等待重新执行
+
+**orchestrator 启动逻辑**：
+1. 检查 `openspec/changes/<change-id>/progress.md` 是否存在
+2. 若存在，解析 `currentStep` 字段，定位到第一个状态为 `in_progress`/`blocked`/`rollback` 或最后一个 `done` 的下一步
+3. 若不存在，从 Step 1 开始全新执行，并初始化 `progress.md`
+
+### 2. `tasks.md` 状态回写协议
+
+每个子代理完成其负责任务后，必须在输出报告中声明「已完成任务 ID 列表」。orchestrator 接收后**立即修改 `tasks.md`**：
+
+- 将对应 `- [ ]` 改为 `- [x]`
+- 在任务行下方追加完成标记：`_完成于 <timestamp> by <agent-name>_`
+- 若任务部分完成，使用 `- [~]` 并追加 `_进行中：<描述>_`
+
+**注意**：`green-implementer` 在 isolated worktree 中运行时无法直接修改主工作区文件，其任务状态由 orchestrator 在合并 worktree 后统一回写。
+
 ## 工作流总览
 
 ### 阶段一：需求探索
@@ -136,10 +189,18 @@ Step 7: 归档（openspec-archive-change skill）
 
 ## 执行规则
 
-### 1. 顺序执行，不可跳步（含回退通道）
-- 每个阶段完成后，必须拿到明确输出产物，才能进入下一阶段。
-- 如果上一阶段检查清单未通过，必须停止并报告 `> **阻断：** [原因]`。
-- **回退通道**：若 Step 5 实现揭示设计缺陷，允许经工程师确认后回退至 Step 2-B/2-C/2-D，标记为"设计修正轮次"。同一 change 的回退次数超过 3 次时，必须向工程师发出警告并建议人工复盘。
+### 1. 顺序执行与断点续执行（含回退通道）
+- **进度初始化**：开始 Step 1 前，必须在 `openspec/changes/<change-id>/progress.md` 中创建初始状态板，所有 Step 标记为 `pending`。
+- **进度更新**：每个阶段完成后，必须**立即**更新 `progress.md`：
+  - 将当前 Step 状态改为 `done`
+  - 将下一步 Step 状态改为 `in_progress`
+  - 更新 `lastUpdated` 和 `currentStep` 字段
+- **断点续执行**：启动时先读取 `progress.md`：
+  - 若存在 `in_progress` Step，从该 Step 继续
+  - 若最后一条为 `done`，进入下一步并标记为 `in_progress`
+  - 若遇到 `blocked` 或 `rollback`，从该 Step 重新执行
+- 如果上一阶段检查清单未通过，必须停止、将当前 Step 标记为 `blocked`，并报告 `> **阻断：** [原因]`。
+- **回退通道**：若 Step 5 实现揭示设计缺陷，允许经工程师确认后回退至 Step 2-B/2-C/2-D，将相关 Step 状态重置为 `rollback`，并更新 `progress.md`。同一 change 的回退次数超过 3 次时，必须向工程师发出警告并建议人工复盘。
 
 ### 2. OpenSpec 探索与初始化
 #### Step 1: 探索
@@ -152,6 +213,32 @@ Step 7: 归档（openspec-archive-change skill）
 - 后续每个 writer subagent 通过 `openspec instructions <artifact-id> --change "<change-id>" --json` 获取模板和规则
 
 ### 3. 子代理调用规范（Handoff 协议）
+
+#### 3.1 子代理任务完成后的 `tasks.md` 回写
+
+每个子代理返回结果中必须包含一个 `completedTasks` 字段（列表），orchestrator 据此立即修改 `tasks.md`：
+
+```markdown
+### 子代理输出要求
+completedTasks:
+  - id: "3.1"
+    status: done       # done | partial | failed
+    agent: red-test-generator
+    note: "useTodos RED 测试已生成并通过编译"
+  - id: "4.1"
+    status: partial
+    agent: green-implementer
+    note: "useTodos 实现完成，storage 实现待处理"
+```
+
+**orchestrator 回写规则**：
+- `done`：将 `- [ ]` 改为 `- [x]`，追加 `_完成于 <timestamp> by <agent-name>: <note>_`
+- `partial`：将 `- [ ]` 改为 `- [~]`，追加 `_进行中 by <agent-name>: <note>_`
+- `failed`：保持 `- [ ]`，追加 `_失败于 <timestamp> by <agent-name>: <note>_`
+
+每次修改 `tasks.md` 后，orchestrator 必须运行 `openspec status --change <change-id> --json` 同步 artifact 状态。
+
+#### 3.2 Handoff 参数
 每次调用子代理时，必须在 prompt 中完整包含以下参数：
 
 ```
@@ -179,18 +266,19 @@ upstream: <file-path>
 
 ### 5. 阶段产物检查清单
 
-| 阶段 | 调用方 | 产物 | 通过标准 |
-|---|---|---|---|
-| Step 1 | `openspec-explore` | 需求范围、Change-ID、capability | 范围清晰、无重大模糊性 |
-| 2-A | `proposal-writer` | `proposal.md` | 格式正确、SMART 验收标准、AI+人工 review 通过 |
-| 2-B | `design-writer` | `design.md` | 与 proposal 一致、接口约定完整、AI+人工 review 通过 |
-| 2-C | `spec-writer` | `spec.md` | SHALL 完整、Delta 标记规范、AI+人工 review 通过 |
-| 2-D | `task-writer` | `tasks.md` | 含 RED/GREEN/IMPROVE、粒度 0.5-2 人日、AI+人工 review 通过 |
-| Step 3 | `task-splitter` | 校验后 `tasks.md` | 每个代码能力都有 RED/GREEN |
-| Step 4 | `red-test-generator` | 测试代码 + RED 报告 | 语法正确、运行时因实现缺失而失败 |
-| Step 5 | `green-implementer` | 实现代码 | 所有测试通过、未修改测试逻辑 |
-| Step 6 | `code-reviewer` + `spec-compliance-reviewer` + `quality-security-reviewer` | 三份审查报告 | 无未关闭的阻断/高级问题 |
-| Step 7 | `openspec-archive-change` | 归档目录 | 所有 artifact 完成、spec 已同步 |
+| 阶段 | 调用方 | 产物 | 通过标准 | progress.md 更新 |
+|---|---|---|---|---|
+| Step 1 | `openspec-explore` | 需求范围、Change-ID、capability | 范围清晰、无重大模糊性 | 初始化 progress.md，Step 1→done，2-A→in_progress |
+| 2-A | `proposal-writer` | `proposal.md` | 格式正确、SMART 验收标准、AI+人工 review 通过 | 2-A→done，2-B→in_progress |
+| 2-B | `design-writer` | `design.md` | 与 proposal 一致、接口约定完整、AI+人工 review 通过 | 2-B→done，2-C→in_progress |
+| 2-C | `spec-writer` | `spec.md` | SHALL 完整、Delta 标记规范、AI+人工 review 通过 | 2-C→done，2-D→in_progress |
+| 2-D | `task-writer` | `tasks.md` | 含 RED/GREEN/IMPROVE、粒度 0.5-2 人日、AI+人工 review 通过 | 2-D→done，3→in_progress |
+| Step 3 | `task-splitter` | 校验后 `tasks.md` | 每个代码能力都有 RED/GREEN | 3→done，4→in_progress |
+| Step 4 | `red-test-generator` | 测试代码 + RED 报告 | 语法正确、运行时因实现缺失而失败 | 4→done，4-V→in_progress |
+| 4-V | `red-verifier` | RED 验证报告 | 测试编译通过、首次运行失败 | 4-V→done，5→in_progress |
+| Step 5 | `green-implementer` | 实现代码 | 所有测试通过、未修改测试逻辑 | 合并 worktree 后 5→done，6→in_progress |
+| Step 6 | `code-reviewer` + `spec-compliance-reviewer` + `quality-security-reviewer` | 三份审查报告 | 无未关闭的阻断/高级问题 | 6→done，7→in_progress |
+| Step 7 | `openspec-archive-change` | 归档目录 | 所有 artifact 完成、spec 已同步 | 7→done |
 
 ### 6. 审查结论分级与处理
 - **阻断**：必须修复，退回对应 writer 阶段重新生成。
@@ -225,12 +313,14 @@ upstream: <file-path>
 ```markdown
 ## 全局状态板
 | 步骤 | 类型 | 状态 | 产物 | AI Review | 人工 Review |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 | Step 1 | Skill | 完成 | ... | — | — |
 | 2-A | Subagent | 完成 | proposal.md | 通过 | 通过 |
 | 2-B | Subagent | 进行中 | — | — | — |
 | ... | ... | ... | ... | ... | ... |
 ```
+
+同时必须确保 `progress.md` 已被同步更新。
 
 ## 与工程师的交互原则
 
